@@ -17,6 +17,11 @@ DOWNLOAD_DIR.mkdir(exist_ok=True)
 sessions = {}
 file_expiry = {}
 EXPIRY_SECONDS = 3600
+COOKIES_FILE = Path("cookies.txt")
+
+# Si la variable INSTAGRAM_COOKIES existe, ecrire le fichier cookies.txt
+if os.environ.get("INSTAGRAM_COOKIES"):
+    COOKIES_FILE.write_text(os.environ["INSTAGRAM_COOKIES"])
 
 HTML = '''<!DOCTYPE html>
 <html lang="fr">
@@ -165,7 +170,8 @@ def download_reel(url, session_id, idx, also_mp3=False):
     session[idx]["status"] = "downloading"
     session[idx]["reel_id"] = reel_id
     try:
-        cmd = ["yt-dlp", "--no-warnings",
+        cookie_args = ["--cookies", str(COOKIES_FILE)] if COOKIES_FILE.exists() else []
+        cmd = ["yt-dlp", "--no-warnings", *cookie_args,
                "-f", "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best",
                "--merge-output-format", "mp4", "-o", str(out_path), "--no-playlist", url]
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
@@ -176,7 +182,8 @@ def download_reel(url, session_id, idx, also_mp3=False):
         file_expiry[str(out_path)] = time.time() + EXPIRY_SECONDS
         if also_mp3:
             mp3_path = session_dir / f"{reel_id}.mp3"
-            subprocess.run(["yt-dlp", "--no-warnings", "-x", "--audio-format", "mp3",
+            subprocess.run(["yt-dlp", "--no-warnings", *cookie_args,
+                            "-x", "--audio-format", "mp3",
                             "--audio-quality", "0", "-o",
                             str(mp3_path).replace(".mp3", ".%(ext)s"),
                             "--no-playlist", url],
